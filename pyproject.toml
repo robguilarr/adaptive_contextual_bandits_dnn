@@ -1,0 +1,23 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural_bandits_iap"
+description = "A Python package for training neural bandits, evaluating their performance, and visualizing the results."
+version = "0.1.0"
+readme = "README.md"
+dependencies = [
+    "tensorflow==2.17.1",
+    "pandas==2.2.3",
+    "numpy==1.23.5",
+    "tflite-support==0.1.0a1",
+    "ai-edge-model-explorer==0.1.16"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["common*", "layers*", "models*", "utilities*"]

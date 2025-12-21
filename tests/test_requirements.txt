@@ -1,0 +1,5 @@
+black==24.10.0
+flake8
+yapf
+pylint
+pytest

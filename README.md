@@ -1,2 +1,4 @@
-# adaptive_contextual_bandits_dnn
+# Adaptive Contextual Bandits DNN
+
 Python package for training neural bandits, evaluating their performance, and visualizing the results
+

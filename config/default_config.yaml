@@ -1,0 +1,87 @@
+data:
+  data_file_path: "data/raw/nano_iap_purchases.csv.gz"
+  train_data_file_path: "data/raw/iap_purchases_train.csv.gz"
+  eval_data_file_path: "data/raw/iap_purchases_eval.csv.gz"
+  test_data_file_path: "data/raw/iap_purchases_test.csv.gz"
+  ingest_batch_size: 1
+  ingest_epochs: 1
+  ingest_shuffle: False
+  ingest_buffer_size: 1
+  field_delim: "|"
+  compression_type: "GZIP"
+  batch_size: 512
+  shuffle_buffer_size: 5000  # use as much as possible to fit in memory
+  balanced_shuffle_buffer_size: 5000  # use as much as possible to fit in memory
+
+features:
+  label_column: "is_powerup_clicked"
+  unwanted_cols:
+    - "event_timestamp"
+    - "event_id"
+  action_weight_column: "presented_powerup"
+
+training:
+  epochs: 5
+  batch_size: 512
+  steps_per_epoch: 8000
+  adaption_batch_size: 5000
+  initial_learning_rate: 0.002
+  lr_decay_steps: 1000
+  lr_decay_rate: 0.70
+  lr_staircase: True
+
+columns:
+  distance_avg:
+    default: 0.0
+    dtype: float32
+  coins_spent:
+    default: 0.0
+    dtype: float32
+  game_day:
+    default: 0.0
+    dtype: float32
+  geo_country:
+    default: "N/A"
+    dtype: string
+  device_os:
+    default: "N/A"
+    dtype: string
+  last_run_end_reason:
+    default: "N/A"
+    dtype: string
+  presented_powerup:
+    default: "N/A"
+    dtype: string
+  is_powerup_clicked:
+    default: 0
+    dtype: int32
+  event_timestamp:
+    default: "N/A"
+    dtype: string
+  event_id:
+    default: "N/A"
+    dtype: string
+
+model_export:
+  save_format: "tf"
+  model_directory: "data/artifacts/models"
+  tflite_enabled: False
+  tflite_model_version: "v1"
+  checkpoints:
+    enabled: True
+    monitor: "val_loss"
+    save_best_only: True
+    mode: "min"
+  plotting:
+    enabled: True
+    show_layer_names: True
+    expand_nested: True
+    show_trainable: True
+    rankdir: "LR"
+    show_layer_activations: True
+    show_shapes: True
+  model_summary:
+    enabled: True
+    expand_nested: True
+    line_length: 112
+    positions:

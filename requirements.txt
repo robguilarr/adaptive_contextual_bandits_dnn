@@ -1,0 +1,5 @@
+tensorflow==2.17.1
+pandas==2.2.3
+numpy==1.23.5
+tflite-support==0.1.0a1
+ai-edge-model-explorer==0.1.16

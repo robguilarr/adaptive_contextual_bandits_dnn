@@ -23,3 +23,4 @@ clean:
 	@echo "Removing virtual environment..."
 	rm -rf $(VENV_DIR)
 	@echo "Cleanup complete."
+

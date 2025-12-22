@@ -6,17 +6,72 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neural_bandits_iap"
-description = "A Python package for training neural bandits, evaluating their performance, and visualizing the results."
-version = "0.1.0"
+name = "adaptive_contextual_bandits_dnn"
+requires-python = ">=3.10"
 readme = "README.md"
-dependencies = [
-    "tensorflow==2.17.1",
-    "pandas==2.2.3",
-    "numpy==1.23.5",
-    "tflite-support==0.1.0a1",
-    "ai-edge-model-explorer==0.1.16"
+version = "0.1.0"
+description = "A Python package for training neural bandits, evaluating their performance, and visualizing the results."
+authors = [
+    {name = "Roberto Aguilar", email = "robert.aq@outlook.com"}
 ]
+maintainers = [
+    {name = "Roberto Aguilar", email = "robert.aq@outlook.com"}
+]
+dependencies = [
+    # Core Machine Learning & Deep Learning
+    "tensorflow==2.17.1",
+    "numpy>=1.24.0,<2.0.0",
+    "pandas>=2.0.0,<3.0.0",
+
+    # TensorFlow Lite & Model Export
+    "tflite-support==0.1.0a1",
+    "ai-edge-model-explorer==0.1.16",
+
+    # Configuration Management
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.11.0",
+    "pyyaml>=6.0.3",
+    "python-dotenv>=1.1.1",
+
+    # Data Processing & I/O
+    "openpyxl>=3.1.5",
+
+    # Utilities
+    "tqdm>=4.67.1",
+    "nest-asyncio>=1.6.0",
+
+    # Visualization (used in notebooks and model plotting)
+    "matplotlib>=3.9",
+
+    # Jupyter Support (for notebooks)
+    "jupyter_core>=5.8",
+]
+
+[project.optional-dependencies]
+# Documentation dependencies
+docs = [
+    "docutils<0.21",
+    "sphinx>=5.3,<7.3",
+    "sphinx_rtd_theme==2.0.0",
+    "nbsphinx==0.8.1",
+    "sphinx-autodoc-typehints==1.20.2",
+    "sphinx_copybutton==0.5.2",
+    "ipykernel>=5.3,<7.0",
+    "Jinja2<3.2.0",
+    "myst-parser>=1.0,<2.1",
+]
+
+# Development dependencies
+dev = [
+    # Testing
+    "pytest~=7.2",
+    "pytest-cov~=3.0",
+    "pytest-mock>=1.7.1,<2.0",
+    # Code Quality
+    "ruff~=0.12.0",
+    "black>=25.9.0",
+]
+
 
 [tool.setuptools.packages.find]
 where = ["src"]

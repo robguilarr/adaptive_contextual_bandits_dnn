@@ -11,6 +11,47 @@ features_config = config_loader.get_config("features")
 columns_config = config_loader.get_config("columns")
 
 
+class ActionSpaceCache:
+    """
+    A simple cache for action space calculations to avoid recomputing
+    the same action space multiple times.
+    """
+
+    _cache = {}
+
+    @classmethod
+    def get_or_compute(cls, dataset: tf.data.Dataset, cache_key: str = None) -> dict:
+        """
+        Get cached action space or compute and cache it.
+
+        Args:
+            dataset (tf.data.Dataset): The dataset containing the actions.
+            cache_key (str, optional): A unique key for caching. If None, uses
+                a hash of the dataset. Defaults to None.
+
+        Returns:
+            dict: The action space dictionary.
+        """
+        if cache_key is None:
+            # Use a simple cache key based on dataset characteristics
+            # For now, we'll use a default key since datasets are not easily hashable
+            cache_key = "default"
+
+        if cache_key not in cls._cache:
+            logger.info(f"Computing action space (cache key: {cache_key})...")
+            cls._cache[cache_key] = calc_action_space(dataset)
+        else:
+            logger.info(f"Using cached action space (cache key: {cache_key})...")
+
+        return cls._cache[cache_key]
+
+    @classmethod
+    def clear(cls):
+        """Clear the action space cache."""
+        cls._cache.clear()
+        logger.info("Action space cache cleared.")
+
+
 def calc_action_space(dataset: tf.data.Dataset) -> dict:
     """
     Calculate the action space, actions, and actions mapping
@@ -21,33 +62,57 @@ def calc_action_space(dataset: tf.data.Dataset) -> dict:
         >> {0: b"coin_magnet", 1: b"coin_multiplier", ...}
     """
     logger.info("Calculating action space...")
-    actions = dataset.map(
-        lambda row_data: row_data[features_config["action_weight_column"]],
-        name="actions_map",
+    
+    # Extract action and label
+    mapped_ds = dataset.map(
+        lambda row_data: (
+            row_data[features_config["action_weight_column"]],
+            tf.cast(row_data[features_config["label_column"]], tf.int32)
+        ),
+        name="actions_labels_map",
     )
-    actions_np = np.concatenate(list(actions.as_numpy_iterator()))
+    
+    actions_list = []
+    labels_list = []
+    
+    for action_batch, label_batch in mapped_ds.as_numpy_iterator():
+        actions_list.append(action_batch)
+        labels_list.append(label_batch)
+        
+    actions_np = np.concatenate(actions_list)
+    labels_np = np.concatenate(labels_list)
 
     unique_actions, action_counts = np.unique(actions_np, return_counts=True)
     actions_mapping = {i: action for i, action in enumerate(unique_actions)}
     action_space_size = len(unique_actions)
+    
+    total_count = len(labels_np)
+    pos_count = np.sum(labels_np == 1)
+    
+    logger.info(f"Total samples: {total_count}, Positive samples: {pos_count}")
 
     return {
-        "actions": actions,
+        "actions": dataset.map(lambda x: x[features_config["action_weight_column"]]), # Keep compatible with original return type if needed, or just remove if unused
         "actions_np": actions_np,
         "unique_actions": unique_actions,
         "action_counts": action_counts,
         "actions_mapping": actions_mapping,
         "action_space": unique_actions,
         "action_space_size": action_space_size,
+        "total_count": total_count,
+        "pos_count": pos_count,
     }
 
 
-def prep_actions_weights(dataset: tf.data.Dataset) -> dict:
+def prep_actions_weights(
+    dataset: tf.data.Dataset, cache_key: str = "default"
+) -> dict:
     """
     Prepare the weights for the actions, this calculates the sample weight based on
-    frequency of reward showing up.
+    frequency of reward showing up. Uses cached action space if available.
     Args:
         dataset (tf.data.Dataset): The dataset containing the actions.
+        cache_key (str): Cache key for action space. Defaults to "default".
     Returns:
         dict: An actions space map dictionary with a mapping action values to weights.
     Note:
@@ -68,7 +133,7 @@ def prep_actions_weights(dataset: tf.data.Dataset) -> dict:
             b'sparky_armor': 4.009415476099381, b'time_machine': 3.9854131010989815}
     """
     logger.info("Preparing actions weights...")
-    action_space_map = calc_action_space(dataset)
+    action_space_map = ActionSpaceCache.get_or_compute(dataset, cache_key)
 
     normalized_counts = (
         action_space_map["action_counts"] / action_space_map["action_counts"].sum()
@@ -82,6 +147,25 @@ def prep_actions_weights(dataset: tf.data.Dataset) -> dict:
         key: (2 / value) ** 0.5 for key, value in value_counts_normalized.items()
     }
 
+    # Calculate global class imbalance multiplier
+    total_count = action_space_map.get("total_count", 0)
+    pos_count = action_space_map.get("pos_count", 0)
+    
+    if total_count > 0 and pos_count > 0:
+        # Calculate ratio of negatives to positives
+        neg_count = total_count - pos_count
+        imbalance_multiplier = neg_count / pos_count
+        logger.info(f"Class imbalance multiplier (Neg/Pos): {imbalance_multiplier:.2f}")
+        
+        # Apply multiplier to all action weights
+        # We want to boost positive samples so their effective weight matches the negative mass
+        # Current weight ~4.0. We want ~30.0.
+        # But wait, the previous logic (2/value)**0.5 was heuristic.
+        # Let's replace it or augment it.
+        # If we just multiply:
+        for key in action_space_map["weights"]:
+             action_space_map["weights"][key] *= imbalance_multiplier
+    
     # Set the weight of the null action to 0.0
     null_action = columns_config["presented_powerup"]["default"].encode("utf-8")
     if null_action in action_space_map["weights"]:

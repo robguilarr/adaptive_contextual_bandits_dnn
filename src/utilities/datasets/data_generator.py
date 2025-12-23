@@ -72,7 +72,7 @@ class DataGenerator:
         n_actions = len(self.powerups)
         
         # 1. Base Probability
-        base_prob = 0.02
+        base_prob = 0.10  # Increased from 0.02 to 0.10 for better balance
         # Shape: (N_users, N_actions)
         probs = np.full((n, n_actions), base_prob)
         
@@ -195,24 +195,28 @@ class DataGenerator:
         train_df = self.generate_users(train_size)
         train_df = self.simulate_interactions(train_df, epsilon=epsilon)
         train_df = self._finalize_dataframe(train_df)
-        train_df.to_csv('training.csv', index=False)
-        print(f"Saved training.csv ({len(train_df)} rows)")
+        train_path = os.path.join('data', 'raw', 'training.csv')
+        os.makedirs(os.path.dirname(train_path), exist_ok=True)
+        train_df.to_csv(train_path, index=False)
+        print(f"Saved {train_path} ({len(train_df)} rows)")
 
         # Generate Validation Data
         print("--- Creating Validation Set ---")
         val_df = self.generate_users(val_size)
         val_df = self.simulate_interactions(val_df, epsilon=epsilon)
         val_df = self._finalize_dataframe(val_df)
-        val_df.to_csv('validation.csv', index=False)
-        print(f"Saved validation.csv ({len(val_df)} rows)")
+        val_path = os.path.join('data', 'raw', 'validation.csv')
+        val_df.to_csv(val_path, index=False)
+        print(f"Saved {val_path} ({len(val_df)} rows)")
         
         # Generate Test Data
         print("--- Creating Test Set ---")
         test_df = self.generate_users(test_size)
         test_df = self.simulate_interactions(test_df, epsilon=epsilon)
         test_df = self._finalize_dataframe(test_df)
-        test_df.to_csv('test.csv', index=False)
-        print(f"Saved test.csv ({len(test_df)} rows)")
+        test_path = os.path.join('data', 'raw', 'test.csv')
+        test_df.to_csv(test_path, index=False)
+        print(f"Saved {test_path} ({len(test_df)} rows)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate synthetic data for IAP Bandits.')

@@ -25,9 +25,30 @@ def setup_model_directory(export_config: dict) -> dict:
     return directories
 
 
-def setup_callbacks(export_config: dict, eval_dataset: tf.data.Dataset) -> list:
+def setup_callbacks(
+    export_config: dict,
+    eval_dataset: tf.data.Dataset,
+    eval_config: dict = None,
+) -> list:
     """Configures model callbacks including validation and checkpointing"""
-    callbacks = [ValidationCallback(eval_dataset)]
+    callbacks = []
+
+    # Setup validation callback if enabled
+    if eval_config is None:
+        eval_config = {}
+    validation_config = eval_config.get("validation_callback", {})
+    if validation_config.get("enabled", True):
+        callbacks.append(
+            ValidationCallback(
+                eval_dataset,
+                max_batches=validation_config.get("max_batches"),
+                filter_positive_rewards=validation_config.get(
+                    "filter_positive_rewards", True
+                ),
+                downsample_actions=validation_config.get("downsample_actions", True),
+                downsample_seed=validation_config.get("downsample_seed", 42),
+            )
+        )
 
     if export_config["checkpoints"]["enabled"]:
         checkpoint_dir = validate_create_dir(
@@ -105,6 +126,10 @@ def train_and_save(config_loader: ConfigLoader):
     columns_config = config_loader.get_config("columns")
     export_config = config_loader.get_config("model_export")
     train_config = config_loader.get_config("training")
+    try:
+        eval_config = config_loader.get_config("evaluation")
+    except ValueError:
+        eval_config = {}
 
     logger.info("--- Loading Datasets ---")
     train_dataset, eval_dataset, action_space_weighted = create_train_eval_datasets()
@@ -134,7 +159,7 @@ def train_and_save(config_loader: ConfigLoader):
     bandit_model = create_bandit_model(preproc_model, output_dim, train_config)
 
     logger.info("--- Configuring Callbacks ---")
-    callbacks = setup_callbacks(export_config, eval_dataset)
+    callbacks = setup_callbacks(export_config, eval_dataset, eval_config)
 
     logger.info("--- Training Neural Bandit Model ---")
     logger.info(

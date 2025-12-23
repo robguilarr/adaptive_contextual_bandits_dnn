@@ -1,13 +1,13 @@
 data:
   data_file_path: "data/raw/nano_iap_purchases.csv.gz"
-  train_data_file_path: "data/raw/iap_purchases_train.csv.gz"
-  eval_data_file_path: "data/raw/iap_purchases_eval.csv.gz"
-  test_data_file_path: "data/raw/iap_purchases_test.csv.gz"
+  train_data_file_path: "data/raw/training.csv"
+  eval_data_file_path: "data/raw/validation.csv"
+  test_data_file_path: "data/raw/test.csv"
   ingest_batch_size: 1
   ingest_epochs: 1
   ingest_shuffle: False
   ingest_buffer_size: 1
-  field_delim: "|"
+  field_delim: ","
   compression_type: "GZIP"
   batch_size: 512
   shuffle_buffer_size: 5000  # use as much as possible to fit in memory
@@ -19,6 +19,15 @@ features:
     - "event_timestamp"
     - "event_id"
   action_weight_column: "presented_powerup"
+  feature_types:  # NEW: Explicit feature type mapping
+    numerical:
+      - distance_avg
+      - coins_spent
+      - game_day
+    categorical:
+      - geo_country
+      - device_os
+      - last_run_end_reason
 
 training:
   epochs: 5
@@ -61,6 +70,14 @@ columns:
   event_id:
     default: "N/A"
     dtype: string
+
+evaluation:
+  validation_callback:
+    enabled: true
+    max_batches: 100  # Limit evaluation batches to prevent OOM
+    filter_positive_rewards: true  # Filter positive rewards (is_powerup_clicked == 1)
+    downsample_actions: true  # Balance action distribution
+    downsample_seed: 42  # Random seed for downsampling
 
 model_export:
   save_format: "tf"

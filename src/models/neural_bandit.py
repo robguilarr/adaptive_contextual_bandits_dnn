@@ -81,6 +81,24 @@ class NeuralBanditModel(tf.keras.Model):
             # Forward pass: get Q-values and integer action_id
             q_values, action_id = self(features, training=True)  # True: training mode
 
+            # Shape assertions
+            batch_size = tf.shape(q_values)[0]
+            tf.debugging.assert_equal(
+                tf.shape(action_id)[0],
+                batch_size,
+                message="Action ID shape mismatch: action_id batch size must match q_values batch size",
+            )
+            tf.debugging.assert_equal(
+                tf.shape(q_values)[1],
+                self.output_dim,
+                message=f"Q-values output dim mismatch: expected {self.output_dim}, got {tf.shape(q_values)[1]}",
+            )
+            tf.debugging.assert_equal(
+                tf.shape(label)[0],
+                batch_size,
+                message="Label shape mismatch: label batch size must match q_values batch size",
+            )
+
             action_id = tf.reshape(action_id, [-1])  # shape=(batch,)
             action_mask = tf.one_hot(
                 tf.cast(action_id, tf.int32), depth=self.output_dim
@@ -113,6 +131,24 @@ class NeuralBanditModel(tf.keras.Model):
         """
         features, label, sample_weight = data
         q_values, action_id = self(features, training=False)  # False: inference mode
+
+        # Shape assertions
+        batch_size = tf.shape(q_values)[0]
+        tf.debugging.assert_equal(
+            tf.shape(action_id)[0],
+            batch_size,
+            message="Action ID shape mismatch: action_id batch size must match q_values batch size",
+        )
+        tf.debugging.assert_equal(
+            tf.shape(q_values)[1],
+            self.output_dim,
+            message=f"Q-values output dim mismatch: expected {self.output_dim}, got {tf.shape(q_values)[1]}",
+        )
+        tf.debugging.assert_equal(
+            tf.shape(label)[0],
+            batch_size,
+            message="Label shape mismatch: label batch size must match q_values batch size",
+        )
 
         action_id = tf.reshape(action_id, [-1])
         action_mask = tf.one_hot(tf.cast(action_id, tf.int32), depth=self.output_dim)

@@ -25,9 +25,30 @@ def setup_model_directory(export_config: dict) -> dict:
     return directories
 
 
-def setup_callbacks(export_config: dict, eval_dataset: tf.data.Dataset) -> list:
+def setup_callbacks(
+    export_config: dict,
+    eval_dataset: tf.data.Dataset,
+    eval_config: dict = None,
+) -> list:
     """Configures model callbacks including validation and checkpointing"""
-    callbacks = [ValidationCallback(eval_dataset)]
+    callbacks = []
+
+    # Setup validation callback if enabled
+    if eval_config is None:
+        eval_config = {}
+    validation_config = eval_config.get("validation_callback", {})
+    if validation_config.get("enabled", True):
+        callbacks.append(
+            ValidationCallback(
+                eval_dataset,
+                max_batches=validation_config.get("max_batches"),
+                filter_positive_rewards=validation_config.get(
+                    "filter_positive_rewards", True
+                ),
+                downsample_actions=validation_config.get("downsample_actions", True),
+                downsample_seed=validation_config.get("downsample_seed", 42),
+            )
+        )
 
     if export_config["checkpoints"]["enabled"]:
         checkpoint_dir = validate_create_dir(
@@ -69,12 +90,50 @@ def setup_preprocessing_model(
     return preproc_model, input_cols, action_space["action_space_size"]
 
 
+class BinaryFocalLoss(tf.keras.losses.Loss):
+    """
+    Binary Focal Loss for imbalanced classification/regression tasks.
+    Adapted for 0/1 labels.
+    """
+    def __init__(self, gamma=2.0, alpha=0.25, from_logits=False, **kwargs):
+        super().__init__(**kwargs)
+        self.gamma = gamma
+        self.alpha = alpha
+        self.from_logits = from_logits
+
+    def call(self, y_true, y_pred):
+        return tf.keras.losses.binary_focal_crossentropy(
+            y_true, y_pred, gamma=self.gamma, alpha=self.alpha, from_logits=self.from_logits
+        )
+
+
 def create_bandit_model(
     preproc_model: tf.keras.Model, output_dim: int, train_config: dict
 ) -> NeuralBanditModel:
     """Initializes and compiles the Neural Bandit model"""
+    
+    # Check for optional loss configuration
+    loss_function_name = train_config.get("loss_function", "mse")
+    output_activation = "relu" # Default for MSE
+    
+    if loss_function_name == "focal":
+        # Focal loss requires logits (linear output) or probabilities (sigmoid)
+        # USed Linear output and let Loss handle it via from_logits=True for numerical stability
+        output_activation = "linear" 
+        loss_fn = BinaryFocalLoss(
+            gamma=train_config.get("focal_loss_gamma", 2.0),
+            alpha=train_config.get("focal_loss_alpha", 0.25),
+            from_logits=True
+        )
+        logger.info(f"Using Focal Loss (gamma={loss_fn.gamma}, alpha={loss_fn.alpha}) with Linear Output")
+    else:
+        loss_fn = tf.keras.losses.MeanSquaredError()
+        logger.info("Using Mean Squared Error Loss with ReLU Output")
+
     model = NeuralBanditModel(
-        preprocessing_submodel=preproc_model, output_dim=output_dim
+        preprocessing_submodel=preproc_model, 
+        output_dim=output_dim,
+        output_activation=output_activation
     )
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -84,14 +143,19 @@ def create_bandit_model(
         staircase=train_config["lr_staircase"],
     )
 
+    from_logits_metric = (loss_function_name == "focal")
+    
+    metrics = [
+        tf.keras.metrics.MeanSquaredError(name="MSE"),
+        tf.keras.metrics.MeanAbsoluteError(name="MAE"),
+        tf.keras.metrics.RootMeanSquaredError(name="RMSE"),
+        tf.keras.metrics.AUC(name="auc", from_logits=from_logits_metric),
+    ]
+
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=lr_schedule),
-        loss=tf.keras.losses.MeanSquaredError(),
-        metrics=[
-            tf.keras.metrics.MeanSquaredError(name="MSE"),
-            tf.keras.metrics.MeanAbsoluteError(name="MAE"),
-            tf.keras.metrics.RootMeanSquaredError(name="RMSE"),
-        ],
+        loss=loss_fn,
+        metrics=metrics,
         run_eagerly=False,
     )
 
@@ -105,6 +169,10 @@ def train_and_save(config_loader: ConfigLoader):
     columns_config = config_loader.get_config("columns")
     export_config = config_loader.get_config("model_export")
     train_config = config_loader.get_config("training")
+    try:
+        eval_config = config_loader.get_config("evaluation")
+    except ValueError:
+        eval_config = {}
 
     logger.info("--- Loading Datasets ---")
     train_dataset, eval_dataset, action_space_weighted = create_train_eval_datasets()
@@ -134,7 +202,7 @@ def train_and_save(config_loader: ConfigLoader):
     bandit_model = create_bandit_model(preproc_model, output_dim, train_config)
 
     logger.info("--- Configuring Callbacks ---")
-    callbacks = setup_callbacks(export_config, eval_dataset)
+    callbacks = setup_callbacks(export_config, eval_dataset, eval_config)
 
     logger.info("--- Training Neural Bandit Model ---")
     logger.info(

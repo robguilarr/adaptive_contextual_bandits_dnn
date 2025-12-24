@@ -8,6 +8,10 @@ from src.layers.loaders.categorical_encoder import (
     create_dynamic_category_encoding_layer,
 )
 from src.common.logging import logger
+from src.common.config import ConfigLoader, get_config_path
+
+config_loader = ConfigLoader(get_config_path())
+config_loader.validate_dtypes()
 
 
 def create_preprocessing_submodel(
@@ -31,29 +35,45 @@ def create_preprocessing_submodel(
         inputs_dict[colname] = Input(name=colname, shape=(1,), dtype=colinfo["dtype"])
 
     logger.info("1.2 - Normalization or One-hot")
+    # Get feature types from config if available
+    features_config = config_loader.get_config("features")
+    feature_types = features_config.get("feature_types", {})
+    numerical_features = set(feature_types.get("numerical", []))
+    categorical_features = set(feature_types.get("categorical", []))
+
     numeric_layers = {}
     string_layers = {}
     for colname, colinfo in input_cols.items():
         if colname == action_col:
             continue
 
-        if colinfo["dtype"] in [
-            tf.float32,
-            tf.float64,
-        ]:  # numeric => normalization
+        # EXPLICIT mapping: Check feature type from config first
+        if colname in numerical_features:
             numeric_layers[colname] = create_normalization_layer(colname, dataset)
-        elif colinfo["dtype"] in [
-            tf.string,
-        ]:  # string => one-hot
+        elif colname in categorical_features:
+            if colinfo["dtype"] == tf.string:
+                string_layers[colname] = create_one_hot_encoding_layer(
+                    name=colname,
+                    dataset=dataset,
+                    dtype="string",
+                )
+            elif colinfo["dtype"] in [tf.int32, tf.int64]:
+                string_layers[colname] = create_one_hot_encoding_layer(
+                    name=colname,
+                    dataset=dataset,
+                    dtype="int",
+                )
+        
+        # Fallback mapping: use dtype if not in feature_types config
+        elif colinfo["dtype"] in [tf.float32, tf.float64]:
+            numeric_layers[colname] = create_normalization_layer(colname, dataset)
+        elif colinfo["dtype"] == tf.string:
             string_layers[colname] = create_one_hot_encoding_layer(
                 name=colname,
                 dataset=dataset,
                 dtype="string",
             )
-        elif colinfo["dtype"] in [
-            tf.int32,
-            tf.int64,
-        ]:  # int => one-hot
+        elif colinfo["dtype"] in [tf.int32, tf.int64]:
             string_layers[colname] = create_one_hot_encoding_layer(
                 name=colname,
                 dataset=dataset,
@@ -75,14 +95,25 @@ def create_preprocessing_submodel(
         filled = fillna_layer(inp)
 
         colinfo = input_cols[colname]
-        if colinfo["dtype"] in [tf.float32, tf.float64]:
+
+        # Use the same logic as above to determine if it's numeric or categorical
+        if colname in numerical_features:
+            norm = numeric_layers[colname](filled)  # shape: (batch, ) if axis=None
+            reshape = Reshape((1,))  # reshape so we can concat with one-hot
+            reshape.name = f"{colname}_reshape"
+            norm = reshape(norm)
+            transformed_tensors.append(norm)
+        elif colname in categorical_features:
+            oh = string_layers[colname](filled)  # shape: (batch, X)
+            transformed_tensors.append(oh)
+        
+        elif colinfo["dtype"] in [tf.float32, tf.float64]:
             norm = numeric_layers[colname](filled)  # shape: (batch, ) if axis=None
             reshape = Reshape((1,))  # reshape so we can concat with one-hot
             reshape.name = f"{colname}_reshape"
             norm = reshape(norm)
             transformed_tensors.append(norm)
         elif colinfo["dtype"] in [tf.string, tf.int32, tf.int64]:
-            # string, int => one-hot
             oh = string_layers[colname](filled)  # shape: (batch, X)
             transformed_tensors.append(oh)
 

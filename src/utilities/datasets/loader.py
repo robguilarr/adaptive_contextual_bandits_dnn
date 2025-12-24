@@ -1,4 +1,5 @@
 import tensorflow as tf
+import csv
 from src.utilities.datasets.weights import prep_actions_weights, compute_sample_weight
 from src.common.config import ConfigLoader, get_config_path
 from src.common.logging import logger
@@ -52,11 +53,45 @@ def load_dataset(
     Returns:
         tf.data.Dataset: Loaded dataset.
     """
-    csv_columns = list(columns_config.keys())
-    csv_defaults = [columns_config[col]["default"] for col in csv_columns]
-
     if file_pattern is None:
         file_pattern = data_config["data_file_path"]
+
+    # Read CSV header to get actual column order
+    try:
+        # Determine compression type based on file extension
+        compression_type = data_config["compression_type"]
+        open_mode = 'rt'
+        if file_pattern.endswith(".gz") or file_pattern.endswith(".gzip"):
+            import gzip
+            file_handle = gzip.open(file_pattern, open_mode)
+            compression_type = "GZIP"
+        else:
+            file_handle = open(file_pattern, open_mode)
+            compression_type = None
+        
+        reader = csv.reader(file_handle, delimiter=data_config["field_delim"])
+        csv_header = next(reader)
+        file_handle.close()
+    except Exception as e:
+        logger.error(f"Error reading CSV header from {file_pattern}: {e}")
+        raise
+
+    # Reorder columns and defaults to match CSV header order
+    csv_columns_ordered = []
+    csv_defaults_ordered = []
+    for col in csv_header:
+        if col in columns_config:
+            csv_columns_ordered.append(col)
+            csv_defaults_ordered.append(columns_config[col]["default"])
+        else:
+            logger.warning(f"Column '{col}' in CSV header not found in config, skipping")
+
+    # Add any config columns not in CSV header (with warnings)
+    for col in columns_config.keys():
+        if col not in csv_columns_ordered:
+            logger.warning(f"Column '{col}' in config not found in CSV header, adding at end")
+            csv_columns_ordered.append(col)
+            csv_defaults_ordered.append(columns_config[col]["default"])
 
     try:
         dataset = tf.data.experimental.make_csv_dataset(
@@ -67,10 +102,10 @@ def load_dataset(
             ],  # single pass (or adjust as needed)
             shuffle=data_config["ingest_shuffle"],
             shuffle_buffer_size=data_config["ingest_buffer_size"],
-            column_names=csv_columns,
-            column_defaults=csv_defaults,
+            column_names=csv_columns_ordered,
+            column_defaults=csv_defaults_ordered,
             field_delim=data_config["field_delim"],
-            compression_type=data_config["compression_type"],
+            compression_type=compression_type,
             num_parallel_reads=tf.data.AUTOTUNE,
         )
         return dataset
@@ -108,7 +143,9 @@ def create_train_eval_datasets() -> tuple[tf.data.Dataset, tf.data.Dataset, dict
         num_parallel_calls=tf.data.AUTOTUNE,
     )
     train_dataset = (
-        train_dataset.shuffle(buffer_size=data_config["shuffle_buffer_size"])
+        train_dataset.unbatch()
+        .shuffle(buffer_size=data_config["shuffle_buffer_size"])
+        .batch(data_config["batch_size"])
         .repeat()
         .prefetch(tf.data.AUTOTUNE)
     )

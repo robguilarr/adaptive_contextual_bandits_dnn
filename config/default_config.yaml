@@ -1,87 +1,102 @@
-data:
-  data_file_path: "data/raw/nano_iap_purchases.csv.gz"
-  train_data_file_path: "data/raw/iap_purchases_train.csv.gz"
-  eval_data_file_path: "data/raw/iap_purchases_eval.csv.gz"
-  test_data_file_path: "data/raw/iap_purchases_test.csv.gz"
-  ingest_batch_size: 1
-  ingest_epochs: 1
-  ingest_shuffle: False
-  ingest_buffer_size: 1
-  field_delim: "|"
-  compression_type: "GZIP"
-  batch_size: 512
-  shuffle_buffer_size: 5000  # use as much as possible to fit in memory
-  balanced_shuffle_buffer_size: 5000  # use as much as possible to fit in memory
-
-features:
-  label_column: "is_powerup_clicked"
-  unwanted_cols:
-    - "event_timestamp"
-    - "event_id"
-  action_weight_column: "presented_powerup"
-
-training:
-  epochs: 5
-  batch_size: 512
-  steps_per_epoch: 8000
-  adaption_batch_size: 5000
-  initial_learning_rate: 0.002
-  lr_decay_steps: 1000
-  lr_decay_rate: 0.70
-  lr_staircase: True
-
 columns:
-  distance_avg:
-    default: 0.0
-    dtype: float32
   coins_spent:
     default: 0.0
     dtype: float32
+  device_os:
+    default: N/A
+    dtype: string
+  distance_avg:
+    default: 0.0
+    dtype: float32
+  event_id:
+    default: N/A
+    dtype: string
+  event_timestamp:
+    default: N/A
+    dtype: string
   game_day:
     default: 0.0
     dtype: float32
   geo_country:
-    default: "N/A"
-    dtype: string
-  device_os:
-    default: "N/A"
-    dtype: string
-  last_run_end_reason:
-    default: "N/A"
-    dtype: string
-  presented_powerup:
-    default: "N/A"
+    default: N/A
     dtype: string
   is_powerup_clicked:
     default: 0
     dtype: int32
-  event_timestamp:
-    default: "N/A"
+  last_run_end_reason:
+    default: N/A
     dtype: string
-  event_id:
-    default: "N/A"
+  presented_powerup:
+    default: N/A
     dtype: string
-
+data:
+  balanced_shuffle_buffer_size: 5000
+  batch_size: 128
+  compression_type: GZIP
+  data_file_path: data/raw/nano_iap_purchases.csv.gz
+  eval_data_file_path: data/raw/validation.csv
+  field_delim: ','
+  ingest_batch_size: 1
+  ingest_buffer_size: 1
+  ingest_epochs: 1
+  ingest_shuffle: false
+  shuffle_buffer_size: 5000
+  test_data_file_path: data/raw/test.csv
+  train_data_file_path: data/raw/training.csv
+evaluation:
+  validation_callback:
+    downsample_actions: true
+    downsample_seed: 42
+    enabled: true
+    filter_positive_rewards: true
+    max_batches: 100
+features:
+  action_weight_column: presented_powerup
+  feature_types:
+    categorical:
+    - geo_country
+    - device_os
+    - last_run_end_reason
+    numerical:
+    - distance_avg
+    - coins_spent
+    - game_day
+  label_column: is_powerup_clicked
+  unwanted_cols:
+  - event_timestamp
+  - event_id
 model_export:
-  save_format: "tf"
-  model_directory: "data/artifacts/models"
-  tflite_enabled: False
-  tflite_model_version: "v1"
   checkpoints:
-    enabled: True
-    monitor: "val_loss"
-    save_best_only: True
-    mode: "min"
-  plotting:
-    enabled: True
-    show_layer_names: True
-    expand_nested: True
-    show_trainable: True
-    rankdir: "LR"
-    show_layer_activations: True
-    show_shapes: True
+    enabled: true
+    mode: min
+    monitor: val_loss
+    save_best_only: true
+  model_directory: data/artifacts/models
   model_summary:
-    enabled: True
-    expand_nested: True
+    enabled: true
+    expand_nested: true
     line_length: 112
-    positions:
+    positions: null
+  plotting:
+    enabled: true
+    expand_nested: true
+    rankdir: LR
+    show_layer_activations: true
+    show_layer_names: true
+    show_shapes: true
+    show_trainable: true
+  save_format: tf
+  tflite_enabled: false
+  tflite_model_version: v1
+training:
+  adaption_batch_size: 50000 # Increased to ensure full vocab coverage
+  batch_size: 128
+  epochs: 20
+  initial_learning_rate: 0.001
+  lr_decay_rate: 0.7
+  lr_decay_steps: 1000
+  lr_staircase: true
+  steps_per_epoch: 5468 # 700,000 / 128 ~= 5468
+  loss_function: "focal" # "mse" or "focal"
+  focal_loss_gamma: 2.0
+  focal_loss_alpha: 0.25

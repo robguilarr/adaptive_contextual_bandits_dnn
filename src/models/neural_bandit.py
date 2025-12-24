@@ -16,6 +16,7 @@ class NeuralBanditModel(tf.keras.Model):
            action_id).
           output_dim: Number of possible actions => dimension of Q-values.
         """
+        output_activation = kwargs.pop("output_activation", "relu")
         super().__init__(**kwargs)
         self.preproc_model = preprocessing_submodel
         self.output_dim = output_dim
@@ -32,11 +33,27 @@ class NeuralBanditModel(tf.keras.Model):
                 tf.keras.layers.Dropout(0.2, name="dropout_2"),
                 tf.keras.layers.Dense(32, activation="relu", name="hidden_dense_7"),
                 tf.keras.layers.Dense(
-                    output_dim, activation="relu", name="output_dense"
+                    output_dim, activation=output_activation, name="output_dense"
                 ),  # Q-values output: one per action ("powerup")
             ],
             name="neural_bandit_q_network",
         )
+
+        # Experiment 7 (remove): Wider & Streamlined Architecture (512 -> 256 -> 128 -> 64 -> 32)
+        # self.qnet = tf.keras.Sequential(
+        #     [
+        #         tf.keras.layers.Dense(512, activation="relu", name="hidden_dense_1"),
+        #         tf.keras.layers.Dense(256, activation="relu", name="hidden_dense_2"),
+        #         tf.keras.layers.Dense(128, activation="relu", name="hidden_dense_3"),
+        #         tf.keras.layers.Dropout(0.2, name="dropout_1"),
+        #         tf.keras.layers.Dense(64, activation="relu", name="hidden_dense_4"),
+        #         tf.keras.layers.Dense(32, activation="relu", name="hidden_dense_5"),
+        #         tf.keras.layers.Dense(
+        #             output_dim, activation=output_activation, name="output_dense"
+        #         ),
+        #     ],
+        #     name="neural_bandit_q_network",
+        # )
 
     def call(self, inputs: dict, training: bool = False):
         """
@@ -104,14 +121,14 @@ class NeuralBanditModel(tf.keras.Model):
                 tf.cast(action_id, tf.int32), depth=self.output_dim
             )  # Bandit logic: build one-hot mask
 
-            # Overwrite predicted Q-values with the actual rewards
+            # Extract the predicted Q-value for the chosen action and minimize Loss(label, chosen_q)
+            chosen_q = tf.reduce_sum(q_values * action_mask, axis=1, keepdims=True) # (batch, 1)
             label = tf.reshape(label, [-1, 1])  # shape=(batch,1)
-            target = q_values * (1.0 - action_mask) + label * action_mask
 
             loss = self.compute_loss(  # Compute sample-weighted loss
                 features,  # x
-                target,  # y
-                q_values,  # y_pred
+                label,  # y_true (was target)
+                chosen_q,  # y_pred (was q_values)
                 sample_weight=sample_weight,
                 training=True,
             )
@@ -122,7 +139,8 @@ class NeuralBanditModel(tf.keras.Model):
         self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
 
         # Update metrics - sample_weight is used to compute the weighted loss
-        self.compute_metrics(features, target, q_values, sample_weight=sample_weight)
+        self.compute_metrics(features, label, chosen_q, sample_weight=sample_weight)
+        
         return {m.name: m.result() for m in self.metrics}
 
     def test_step(self, data: tuple):
@@ -153,13 +171,14 @@ class NeuralBanditModel(tf.keras.Model):
         action_id = tf.reshape(action_id, [-1])
         action_mask = tf.one_hot(tf.cast(action_id, tf.int32), depth=self.output_dim)
 
+        # Extract the predicted Q-value for the chosen action
+        chosen_q = tf.reduce_sum(q_values * action_mask, axis=1, keepdims=True) # (batch, 1)
         label = tf.reshape(label, [-1, 1])
-        target = q_values * (1.0 - action_mask) + label * action_mask
 
         loss = self.compute_loss(
-            features, target, q_values, sample_weight=sample_weight, training=False
+            features, label, chosen_q, sample_weight=sample_weight, training=False
         )
-        self.compute_metrics(features, target, q_values, sample_weight=sample_weight)
+        self.compute_metrics(features, label, chosen_q, sample_weight=sample_weight)
 
         return {m.name: m.result() for m in self.metrics}
 

@@ -47,12 +47,10 @@ def create_preprocessing_submodel(
         if colname == action_col:
             continue
 
-        # Check feature type from config first (explicit mapping)
+        # EXPLICIT mapping: Check feature type from config first
         if colname in numerical_features:
-            # Explicitly marked as numerical => normalization
             numeric_layers[colname] = create_normalization_layer(colname, dataset)
         elif colname in categorical_features:
-            # Explicitly marked as categorical => one-hot
             if colinfo["dtype"] == tf.string:
                 string_layers[colname] = create_one_hot_encoding_layer(
                     name=colname,
@@ -65,19 +63,17 @@ def create_preprocessing_submodel(
                     dataset=dataset,
                     dtype="int",
                 )
-        # Fallback: use dtype if not in feature_types config
+        
+        # Fallback mapping: use dtype if not in feature_types config
         elif colinfo["dtype"] in [tf.float32, tf.float64]:
-            # numeric => normalization
             numeric_layers[colname] = create_normalization_layer(colname, dataset)
         elif colinfo["dtype"] == tf.string:
-            # string => one-hot
             string_layers[colname] = create_one_hot_encoding_layer(
                 name=colname,
                 dataset=dataset,
                 dtype="string",
             )
         elif colinfo["dtype"] in [tf.int32, tf.int64]:
-            # int => one-hot (legacy behavior, but can be overridden by feature_types)
             string_layers[colname] = create_one_hot_encoding_layer(
                 name=colname,
                 dataset=dataset,
@@ -99,28 +95,25 @@ def create_preprocessing_submodel(
         filled = fillna_layer(inp)
 
         colinfo = input_cols[colname]
+
         # Use the same logic as above to determine if it's numeric or categorical
         if colname in numerical_features:
-            # Explicitly marked as numerical => normalization
             norm = numeric_layers[colname](filled)  # shape: (batch, ) if axis=None
             reshape = Reshape((1,))  # reshape so we can concat with one-hot
             reshape.name = f"{colname}_reshape"
             norm = reshape(norm)
             transformed_tensors.append(norm)
         elif colname in categorical_features:
-            # Explicitly marked as categorical => one-hot
             oh = string_layers[colname](filled)  # shape: (batch, X)
             transformed_tensors.append(oh)
-        # Fallback: use dtype if not in feature_types config
+        
         elif colinfo["dtype"] in [tf.float32, tf.float64]:
-            # Numeric feature => normalization
             norm = numeric_layers[colname](filled)  # shape: (batch, ) if axis=None
             reshape = Reshape((1,))  # reshape so we can concat with one-hot
             reshape.name = f"{colname}_reshape"
             norm = reshape(norm)
             transformed_tensors.append(norm)
         elif colinfo["dtype"] in [tf.string, tf.int32, tf.int64]:
-            # Categorical feature => one-hot (legacy behavior)
             oh = string_layers[colname](filled)  # shape: (batch, X)
             transformed_tensors.append(oh)
 

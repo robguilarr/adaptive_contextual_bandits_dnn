@@ -33,9 +33,7 @@ class ActionSpaceCache:
             dict: The action space dictionary.
         """
         if cache_key is None:
-            # Use a simple cache key based on dataset characteristics
-            # For now, we'll use a default key since datasets are not easily hashable
-            cache_key = "default"
+            cache_key = "default" # default key since datasets are not easily hashable
 
         if cache_key not in cls._cache:
             logger.info(f"Computing action space (cache key: {cache_key})...")
@@ -154,15 +152,11 @@ def prep_actions_weights(
     if total_count > 0 and pos_count > 0:
         # Calculate ratio of negatives to positives
         neg_count = total_count - pos_count
+
+        # Dynamic Weighting Fix: Global Class Imbalance Multiplier
         imbalance_multiplier = neg_count / pos_count
         logger.info(f"Class imbalance multiplier (Neg/Pos): {imbalance_multiplier:.2f}")
         
-        # Apply multiplier to all action weights
-        # We want to boost positive samples so their effective weight matches the negative mass
-        # Current weight ~4.0. We want ~30.0.
-        # But wait, the previous logic (2/value)**0.5 was heuristic.
-        # Let's replace it or augment it.
-        # If we just multiply:
         for key in action_space_map["weights"]:
              action_space_map["weights"][key] *= imbalance_multiplier
     

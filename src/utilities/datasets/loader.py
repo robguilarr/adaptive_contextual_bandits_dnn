@@ -143,7 +143,9 @@ def create_train_eval_datasets() -> tuple[tf.data.Dataset, tf.data.Dataset, dict
         num_parallel_calls=tf.data.AUTOTUNE,
     )
     train_dataset = (
-        train_dataset.shuffle(buffer_size=data_config["shuffle_buffer_size"])
+        train_dataset.unbatch()
+        .shuffle(buffer_size=data_config["shuffle_buffer_size"])
+        .batch(data_config["batch_size"])
         .repeat()
         .prefetch(tf.data.AUTOTUNE)
     )

@@ -92,7 +92,7 @@ def create_one_hot_encoding_layer(
         name=name + "_category_encoder",
     )
 
-    # Use custom SqueezeLayer instead of Lambda for better serialization
+    # SqueezeLayer instead of Lambda for better/faster serialization
     squeeze_layer = SqueezeLayer(axis=-1, name=name + "_squeeze")
 
     def encode_fn(feature):

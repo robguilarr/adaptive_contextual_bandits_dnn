@@ -67,12 +67,22 @@ class DataGenerator:
         """
         Calculates the purchase probability for EVERY action for EVERY user.
         Returns a matrix of shape (N_users, N_actions).
+        
+        The calculation starts with a uniform base_prob (baseline purchase probability)
+        applied to all user-action pairs, which is then modified by contextual factors:
+        - Contextual triggers (e.g., death reason → relevant powerup)
+        - User segments (veterans, whales, strugglers)
+        - Price sensitivity
+        
+        base_prob represents the minimum conversion rate before any contextual adjustments,
+        serving as the foundation for probability modeling. Higher values create more
+        balanced datasets with better signal for training. Note: keep it  below 0.15 to avoid a "Logging Policy" bias.
         """
         n = len(df)
         n_actions = len(self.powerups)
         
         # 1. Base Probability
-        base_prob = 0.10  # Increased from 0.02 to 0.10 for better balance
+        base_prob = 0.10
         # Shape: (N_users, N_actions)
         probs = np.full((n, n_actions), base_prob)
         

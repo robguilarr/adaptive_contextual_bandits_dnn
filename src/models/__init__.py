@@ -9,4 +9,3 @@ __all__ = [
     "create_preprocessing_submodel",
     "ValidationCallback",
 ]
-

@@ -111,6 +111,7 @@ class BinaryFocalLoss(tf.keras.losses.Loss):
     Binary Focal Loss for imbalanced classification/regression tasks.
     Adapted for 0/1 labels.
     """
+
     def __init__(self, gamma=2.0, alpha=0.25, from_logits=False, **kwargs):
         super().__init__(**kwargs)
         self.gamma = gamma
@@ -119,7 +120,11 @@ class BinaryFocalLoss(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
         return tf.keras.losses.binary_focal_crossentropy(
-            y_true, y_pred, gamma=self.gamma, alpha=self.alpha, from_logits=self.from_logits
+            y_true,
+            y_pred,
+            gamma=self.gamma,
+            alpha=self.alpha,
+            from_logits=self.from_logits,
         )
 
 
@@ -127,29 +132,30 @@ def create_bandit_model(
     preproc_model: tf.keras.Model, output_dim: int, train_config: dict
 ) -> NeuralBanditModel:
     """Initializes and compiles the Neural Bandit model"""
-    
+
     # Check for optional loss configuration
     loss_function_name = train_config.get("loss_function", "mse")
-    output_activation = "relu" # Default for MSE
-    
+    output_activation = "relu"  # Default for MSE
+
     if loss_function_name == "focal":
         # Focal loss requires logits (linear output) or probabilities (sigmoid)
-        # USed Linear output and let Loss handle it via from_logits=True for numerical stability
-        output_activation = "linear" 
+        output_activation = "linear"
         loss_fn = BinaryFocalLoss(
             gamma=train_config.get("focal_loss_gamma", 2.0),
             alpha=train_config.get("focal_loss_alpha", 0.25),
-            from_logits=True
+            from_logits=True,
         )
-        logger.info(f"Using Focal Loss (gamma={loss_fn.gamma}, alpha={loss_fn.alpha}) with Linear Output")
+        logger.info(
+            f"Using Focal Loss (gamma={loss_fn.gamma}, alpha={loss_fn.alpha}) with Linear Output"
+        )
     else:
         loss_fn = tf.keras.losses.MeanSquaredError()
         logger.info("Using Mean Squared Error Loss with ReLU Output")
 
     model = NeuralBanditModel(
-        preprocessing_submodel=preproc_model, 
+        preprocessing_submodel=preproc_model,
         output_dim=output_dim,
-        output_activation=output_activation
+        output_activation=output_activation,
     )
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -159,8 +165,8 @@ def create_bandit_model(
         staircase=train_config["lr_staircase"],
     )
 
-    from_logits_metric = (loss_function_name == "focal")
-    
+    from_logits_metric = loss_function_name == "focal"
+
     metrics = [
         tf.keras.metrics.MeanSquaredError(name="MSE"),
         tf.keras.metrics.MeanAbsoluteError(name="MAE"),
@@ -176,6 +182,48 @@ def create_bandit_model(
     )
 
     return model
+
+
+def trace_mlp_graph(
+    train_dataset: tf.data.Dataset,
+    preproc_model: tf.keras.Model,
+    bandit_model: NeuralBanditModel,
+    log_dir,
+):
+    """
+    Traces and exports the MLP (Q-network) graph to TensorBoard.
+
+    Args:
+        train_dataset: Training dataset to get sample batch
+        preproc_model: Preprocessing model to transform features
+        bandit_model: Neural bandit model containing the Q-network
+        log_dir: Directory path for TensorBoard logs
+    """
+    try:
+        sample_batch = next(iter(train_dataset))
+        features, _, _ = sample_batch
+
+        # Run preproc to get MLP inputs
+        concat_features, _ = preproc_model(features, training=False)
+
+        # Define a function to trace JUST the MLP
+        @tf.function
+        def trace_mlp(inputs):
+            return bandit_model.qnet(inputs, training=False)
+
+        # Trace and export
+        mlp_log_dir = log_dir / "mlp_graph"
+        writer = tf.summary.create_file_writer(str(mlp_log_dir))
+        with writer.as_default():
+            tf.summary.trace_on(graph=True, profiler=False)
+            trace_mlp(concat_features)
+            tf.summary.trace_export(
+                name="MLP_QNetwork", step=0, profiler_outdir=str(mlp_log_dir)
+            )
+        logger.info(f"MLP Graph trace exported to {mlp_log_dir}")
+
+    except Exception as e:
+        logger.warning(f"Failed to explicitly trace MLP graph: {e}")
 
 
 def train_and_save(config_loader: ConfigLoader):
@@ -221,48 +269,16 @@ def train_and_save(config_loader: ConfigLoader):
     # Log the output shape of preprocessing model for debugging
     if hasattr(preproc_model, "output_shape"):
         logger.info(f"Preprocessing model output shape: {preproc_model.output_shape}")
-        
+
     bandit_model = create_bandit_model(preproc_model, output_dim, train_config)
 
     logger.info("--- Configuring Callbacks ---")
-    callbacks = setup_callbacks(export_config, eval_dataset, eval_config, log_dir=str(log_dir))
-    
-    # Add graph tracing callback for TensorBoard
-    # We only want to trace the Q-network (MLP), so we use a specialized callback logic
-    # or rely on the standard TensorBoard callback.
-    # The standard callback with write_graph=True traces the 'call' method.
-    # If we want ONLY the MLP, we can manually trace just the qnet.
-    
-    # Manual trace for MLP only
-    try:
-        # Get a sample batch to determine input shape for Q-network
-        # We need the output of preproc_model
-        sample_batch = next(iter(train_dataset))
-        features, _, _ = sample_batch
-        
-        # Run preproc to get MLP inputs
-        concat_features, _ = preproc_model(features, training=False)
-        
-        # Define a function to trace JUST the MLP
-        @tf.function
-        def trace_mlp(inputs):
-            return bandit_model.qnet(inputs, training=False)
+    callbacks = setup_callbacks(
+        export_config, eval_dataset, eval_config, log_dir=str(log_dir)
+    )
 
-        # Trace and export
-        mlp_log_dir = log_dir / "mlp_graph"
-        writer = tf.summary.create_file_writer(str(mlp_log_dir))
-        with writer.as_default():
-            tf.summary.trace_on(graph=True, profiler=False)
-            trace_mlp(concat_features)
-            tf.summary.trace_export(
-                name="MLP_QNetwork",
-                step=0,
-                profiler_outdir=str(mlp_log_dir)
-            )
-        logger.info(f"MLP Graph trace exported to {mlp_log_dir}")
-        
-    except Exception as e:
-        logger.warning(f"Failed to explicitly trace MLP graph: {e}")
+    # Manual trace for MLP only (tensorboard use)
+    trace_mlp_graph(train_dataset, preproc_model, bandit_model, log_dir)
 
     logger.info("--- Training Neural Bandit Model ---")
     logger.info(

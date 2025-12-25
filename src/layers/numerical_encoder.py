@@ -43,4 +43,3 @@ def create_normalization_layer(
     normalizer.adapt(feature_ds_subset)
 
     return normalizer
-

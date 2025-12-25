@@ -37,7 +37,7 @@ This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et
 - Enhanced preprocessing pipeline with flexible feature encoding and automatic layer adaptation.
 - TensorBoard integration for training monitoring.
 - Synthetic data generation module for testing and development.
-- Multiple model export formats including TFLite with metadata (Not 100% ready on version 1.0.0.).
+- Multiple model export formats including TFLite with metadata (Not 100% ready on version 0.1.).
 
 **Original Inspiration:**
 
@@ -55,7 +55,7 @@ This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/robguilarr/adaptive_contextual_bandits_dnn.git
 cd adaptive_contextual_bandits_dnn
 
 # Create virtual environment and install dependencies
@@ -212,7 +212,7 @@ adaptive_contextual_bandits_dnn/
 │   ├── processed/                 # Processed data
 │   └── artifacts/                 # Model artifacts
 │       └── models/                # Saved models
-├── docs/                          # Documentation
+├── docs/                          # Documentation/Debuggin & Materials
 ├── tests/                         # Unit tests
 ├── notebooks/                     # Jupyter notebooks
 ├── pyproject.toml                 # Package configuration
@@ -308,16 +308,6 @@ The package supports exporting models in multiple formats:
 - **TensorFlow Lite** (`.tflite`): For mobile/edge deployment with metadata
 
 TFLite export includes preprocessing metadata (normalization stats, vocabulary, action mappings) in JSON format.
-
-## Development
-
-### Building Documentation
-
-```bash
-pip install -e ".[docs]"
-cd docs
-make html
-```
 
 ## Troubleshooting
 

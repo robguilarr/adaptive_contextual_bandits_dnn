@@ -185,7 +185,7 @@ def export_base_model(
     model: tf.keras.Model,
     save_format: str,
     model_directory: Path | str,
-    model_name: str = "NeuralBanditModel"
+    model_name: str = "NeuralBanditModel",
 ) -> None:
     """
     Convert a trained TensorFlow model
@@ -213,7 +213,8 @@ def export_base_model(
             )
         else:
             raise ValueError(
-                f"Invalid save format: {save_format}. Use 'keras', 'h5', or 'tf'.")
+                f"Invalid save format: {save_format}. Use 'keras', 'h5', or 'tf'."
+            )
     except Exception as e:
         logger.error(f"Error saving model in {save_format} format: {e}")
         raise e

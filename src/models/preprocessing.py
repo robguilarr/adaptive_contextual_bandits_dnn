@@ -65,7 +65,7 @@ def create_preprocessing_submodel(
                     dataset=dataset,
                     dtype="int",
                 )
-        
+
         # Fallback mapping: use dtype if not in feature_types config
         elif colinfo["dtype"] in [tf.float32, tf.float64]:
             numeric_layers[colname] = create_normalization_layer(colname, dataset)
@@ -108,7 +108,7 @@ def create_preprocessing_submodel(
         elif colname in categorical_features:
             oh = string_layers[colname](filled)  # shape: (batch, X)
             transformed_tensors.append(oh)
-        
+
         elif colinfo["dtype"] in [tf.float32, tf.float64]:
             norm = numeric_layers[colname](filled)  # shape: (batch, ) if axis=None
             reshape = Reshape((1,))  # reshape so we can concat with one-hot

@@ -97,4 +97,3 @@ def create_dynamic_category_encoding_layer(
         oov_value=oov_value,
         **kwargs,
     )
-

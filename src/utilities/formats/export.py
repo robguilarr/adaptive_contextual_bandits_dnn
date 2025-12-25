@@ -1,3 +1,5 @@
+"""Model export utilities for TensorFlow, Keras, and TFLite formats with metadata."""
+
 import json
 from datetime import datetime
 import tensorflow as tf

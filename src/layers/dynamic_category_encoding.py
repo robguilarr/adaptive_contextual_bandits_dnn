@@ -1,3 +1,5 @@
+"""Custom TensorFlow layers for dynamic category encoding and missing value handling."""
+
 import tensorflow as tf
 from src.common.constants import FILLNA_VALUES
 
@@ -114,3 +116,4 @@ class FillNA(tf.keras.layers.Layer):
         config = super(FillNA, self).get_config()
         config.update({"fill_values": self.fill_values})
         return config
+

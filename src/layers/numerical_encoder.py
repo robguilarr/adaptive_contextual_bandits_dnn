@@ -1,3 +1,5 @@
+"""Numerical feature normalization layers for preprocessing."""
+
 import tensorflow as tf
 from src.common.logging import logger
 from src.common.config import ConfigLoader, get_config_path
@@ -41,3 +43,4 @@ def create_normalization_layer(
     normalizer.adapt(feature_ds_subset)
 
     return normalizer
+

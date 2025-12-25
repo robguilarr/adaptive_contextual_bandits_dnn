@@ -1,6 +1,7 @@
 """Train the Neural Bandit Model and save it to storage."""
 
 import tensorflow as tf
+import datetime
 from src.common.config import ConfigLoader, get_config_path
 from src.common.logging import logger
 from src.utilities.formats.export import (
@@ -21,6 +22,7 @@ def setup_model_directory(export_config: dict) -> dict:
         "plots": validate_create_dir(base_dir, "plots"),
         "checkpoints": validate_create_dir(base_dir, "checkpoints"),
         "summary": validate_create_dir(base_dir, "summary"),
+        "tensorboard": validate_create_dir(base_dir, "tensorboard"),
     }
     return directories
 
@@ -29,6 +31,7 @@ def setup_callbacks(
     export_config: dict,
     eval_dataset: tf.data.Dataset,
     eval_config: dict = None,
+    log_dir: str = None,
 ) -> list:
     """Configures model callbacks including validation and checkpointing"""
     callbacks = []
@@ -47,6 +50,7 @@ def setup_callbacks(
                 ),
                 downsample_actions=validation_config.get("downsample_actions", True),
                 downsample_seed=validation_config.get("downsample_seed", 42),
+                log_dir=log_dir,  # Pass log_dir to ValidationCallback for logging
             )
         )
 
@@ -62,6 +66,18 @@ def setup_callbacks(
             mode=checkpoint_args["mode"],
         )
         callbacks.append(state_checkpoint)
+
+    if log_dir:
+        callbacks.append(
+            tf.keras.callbacks.TensorBoard(
+                log_dir=log_dir,
+                histogram_freq=1,
+                write_graph=True,
+                write_images=False,
+                update_freq="epoch",
+                profile_batch=0,
+            )
+        )
 
     return callbacks
 
@@ -185,6 +201,9 @@ def train_and_save(config_loader: ConfigLoader):
     logger.info("--- Setting Up Model Directories ---")
     directories = setup_model_directory(export_config)
 
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = directories["tensorboard"] / timestamp
+
     if export_config["plotting"]["enabled"]:
         logger.info("--- Plotting Preprocessing Model ---")
         tf.keras.utils.plot_model(
@@ -199,10 +218,51 @@ def train_and_save(config_loader: ConfigLoader):
         )
 
     logger.info("--- Initializing Neural Bandit Model ---")
+    # Log the output shape of preprocessing model for debugging
+    if hasattr(preproc_model, "output_shape"):
+        logger.info(f"Preprocessing model output shape: {preproc_model.output_shape}")
+        
     bandit_model = create_bandit_model(preproc_model, output_dim, train_config)
 
     logger.info("--- Configuring Callbacks ---")
-    callbacks = setup_callbacks(export_config, eval_dataset, eval_config)
+    callbacks = setup_callbacks(export_config, eval_dataset, eval_config, log_dir=str(log_dir))
+    
+    # Add graph tracing callback for TensorBoard
+    # We only want to trace the Q-network (MLP), so we use a specialized callback logic
+    # or rely on the standard TensorBoard callback.
+    # The standard callback with write_graph=True traces the 'call' method.
+    # If we want ONLY the MLP, we can manually trace just the qnet.
+    
+    # Manual trace for MLP only
+    try:
+        # Get a sample batch to determine input shape for Q-network
+        # We need the output of preproc_model
+        sample_batch = next(iter(train_dataset))
+        features, _, _ = sample_batch
+        
+        # Run preproc to get MLP inputs
+        concat_features, _ = preproc_model(features, training=False)
+        
+        # Define a function to trace JUST the MLP
+        @tf.function
+        def trace_mlp(inputs):
+            return bandit_model.qnet(inputs, training=False)
+
+        # Trace and export
+        mlp_log_dir = log_dir / "mlp_graph"
+        writer = tf.summary.create_file_writer(str(mlp_log_dir))
+        with writer.as_default():
+            tf.summary.trace_on(graph=True, profiler=False)
+            trace_mlp(concat_features)
+            tf.summary.trace_export(
+                name="MLP_QNetwork",
+                step=0,
+                profiler_outdir=str(mlp_log_dir)
+            )
+        logger.info(f"MLP Graph trace exported to {mlp_log_dir}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to explicitly trace MLP graph: {e}")
 
     logger.info("--- Training Neural Bandit Model ---")
     logger.info(
@@ -214,7 +274,6 @@ def train_and_save(config_loader: ConfigLoader):
         steps_per_epoch=train_config[
             "steps_per_epoch"
         ],  # should be = train rows / batch_size
-        validation_data=eval_dataset,
         callbacks=callbacks,
     )
 

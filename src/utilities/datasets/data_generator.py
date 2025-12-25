@@ -1,3 +1,5 @@
+"""Synthetic data generation for contextual bandit training and evaluation."""
+
 import pandas as pd
 import numpy as np
 import argparse
@@ -163,8 +165,6 @@ class DataGenerator:
         # We need to extract the probability corresponding to the *chosen* action
         # Create an indexer [0..N-1, action_indices]
         action_indices = np.searchsorted(self.powerup_names, final_actions)
-        # Sort powerup_names first to use searchsorted, or just use a dict mapping if unsorted.
-        # Actually, let's use a simpler way since N is large but Actions is small (8).
         
         selected_probs = np.zeros(n)
         for i, name in enumerate(self.powerup_names):
@@ -174,8 +174,6 @@ class DataGenerator:
         # Bernoulli Trial
         random_draws = np.random.random(size=n)
         df['is_powerup_clicked'] = (random_draws < selected_probs).astype(int)
-        # We calculate reward internally for potential future use or debugging, 
-        # but it won't be in the final CSV if we drop it.
         df['reward'] = df['is_powerup_clicked'] * df['price']
         
         return df

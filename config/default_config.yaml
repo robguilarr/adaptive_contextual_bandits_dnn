@@ -96,7 +96,7 @@ training:
   lr_decay_rate: 0.7
   lr_decay_steps: 1000
   lr_staircase: true
-  steps_per_epoch: 5468 # 700,000 / 128 ~= 5468
+  steps_per_epoch: 5468
   loss_function: "focal" # "mse" or "focal"
   focal_loss_gamma: 2.0
   focal_loss_alpha: 0.25

@@ -1,39 +1,13 @@
+"""Categorical feature encoding layers for one-hot and dynamic category encoding."""
+
 import tensorflow as tf
 from src.common.logging import logger
-from src.layers.subclass.nodes import DynamicCategoryEncoding
+from src.layers.dynamic_category_encoding import DynamicCategoryEncoding
 from src.common.config import ConfigLoader, get_config_path
 
 config_loader = ConfigLoader(get_config_path())
 config_loader.validate_dtypes()
 train_config = config_loader.get_config("training")
-
-
-class SqueezeLayer(tf.keras.layers.Layer):
-    """
-    A custom layer that squeezes a dimension from the input tensor.
-    This replaces Lambda layers for better serialization compatibility with Keras 3.
-    """
-
-    def __init__(self, axis=-1, **kwargs):
-        """
-        Initialize the SqueezeLayer.
-
-        Args:
-            axis (int): The axis to squeeze. Defaults to -1.
-            **kwargs: Additional keyword arguments passed to the parent Layer class.
-        """
-        super().__init__(**kwargs)
-        self.axis = axis
-
-    def call(self, inputs):
-        """Squeeze the specified axis from the input tensor."""
-        return tf.squeeze(inputs, axis=self.axis)
-
-    def get_config(self):
-        """Get the configuration dictionary for serialization."""
-        config = super().get_config()
-        config.update({"axis": self.axis})
-        return config
 
 
 def create_one_hot_encoding_layer(
@@ -92,11 +66,11 @@ def create_one_hot_encoding_layer(
         name=name + "_category_encoder",
     )
 
-    # SqueezeLayer instead of Lambda for better/faster serialization
-    squeeze_layer = SqueezeLayer(axis=-1, name=name + "_squeeze")
+    # Reshape layer to ensure rank 1 input for index lookup
+    flatten_layer = tf.keras.layers.Reshape((-1,), name=name + "_flatten")
 
     def encode_fn(feature):
-        feature = squeeze_layer(feature)
+        feature = flatten_layer(feature)
         return encoder(index(feature))
 
     return encode_fn
@@ -123,3 +97,4 @@ def create_dynamic_category_encoding_layer(
         oov_value=oov_value,
         **kwargs,
     )
+

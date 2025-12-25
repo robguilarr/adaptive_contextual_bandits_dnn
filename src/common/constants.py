@@ -1,3 +1,5 @@
+"""TensorFlow data type constants and fill values for missing data handling."""
+
 from tensorflow import (
     float32,
     float64,

@@ -1,6 +1,8 @@
+"""Logging configuration for the application."""
+
 import logging
 
-logger = logging.getLogger("TensorFLow Logger")
+logger = logging.getLogger("tensorflow_logger")
 logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter(

@@ -1,3 +1,5 @@
+"""Configuration management for loading and validating YAML configuration files."""
+
 import os
 import yaml
 from pathlib import Path

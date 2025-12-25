@@ -1,3 +1,5 @@
+"""Model loading and preprocessing setup utilities for inference and evaluation."""
+
 import argparse
 import tensorflow as tf
 from src.common.logging import logger

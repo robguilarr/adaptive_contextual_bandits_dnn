@@ -1,7 +1,9 @@
+"""Action space calculation and sample weight computation for bandit training."""
+
 import numpy as np
 import tensorflow as tf
 
-from src.layers.subclass.nodes import FillNA
+from src.layers.dynamic_category_encoding import FillNA
 from src.common.config import ConfigLoader, get_config_path
 from src.common.logging import logger
 

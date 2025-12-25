@@ -1,9 +1,11 @@
+"""Preprocessing model creation for feature encoding and normalization."""
+
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Reshape, Concatenate
-from src.layers.subclass.nodes import FillNA
-from src.layers.loaders.numerical_encoder import create_normalization_layer
-from src.layers.loaders.categorical_encoder import (
+from src.layers.dynamic_category_encoding import FillNA
+from src.layers.numerical_encoder import create_normalization_layer
+from src.layers.categorical_encoder import (
     create_one_hot_encoding_layer,
     create_dynamic_category_encoding_layer,
 )

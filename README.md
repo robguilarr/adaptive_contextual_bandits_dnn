@@ -1,11 +1,11 @@
-# Adaptive Contextual Bandits DNN
+# Adaptive Contextual Bandits
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.17.1-orange.svg)](https://www.tensorflow.org/)
 [![Keras](https://img.shields.io/badge/Keras-3.0-red.svg)](https://keras.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Python package for training neural contextual bandits, evaluating their performance, and deploying models for personalized recommendation systems. This implementation uses deep neural networks to learn Q-values for contextual multi-armed bandit problems, with a focus on in-app purchase (IAP) optimization.
+DNN for training contextual bandits, evaluating their performance, and deploying models for personalized recommendation systems. This implementation uses deep neural networks to learn Q-values for contextual multi-armed bandit problems, with a focus on in-app purchase (IAP) optimization. The end-to-end workflow from preprocessing to inference was built with TensorFlow to enable GPU runtime execution across all stages.
 
 ## Overview
 
@@ -19,7 +19,7 @@ This package implements a **Neural Contextual Bandit** model that learns to reco
 ### Core Features
 
 - **Deep Q-Network Architecture**: Multi-layer perceptron (MLP) that learns Q-values for contextual bandit problems
-- **Preprocessing Submodel**: builds a functional preprocessing graph with conditional layer chaining based on data types, and includes persisted (**cached in-memory**) action mapping for action-to-integer encoding
+- **Preprocessing Submodel**: builds a functional preprocessing graph with conditional layer chaining based on data types, and includes persisted (**cached in-memory**) action mapping for action-to-integer encoding. The entire preprocessing pipeline runs on GPU for accelerated feature encoding
 - **Flexible Preprocessing**: Automatic feature encoding with normalization for numerical features and one-hot encoding for categorical features
 - **ValidationCallback**: Evaluation callback that measures balanced accuracy by filtering and downsampling on positive rewards, comparing Q-values against predicted rewards during training
 - **Class Imbalance Reward-Handling**: Dynamic sample weighting to address imbalanced reward distributions
@@ -30,7 +30,7 @@ This package implements a **Neural Contextual Bandit** model that learns to reco
 
 ## Acknowledgments
 
-This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et al.*) on Realtime on-device In-app-purchase optimization. This implementation is an **enhanced and higher-performance version** that includes:
+This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et al.*) on Realtime on-device In-app-purchase optimization. This implementation is an **Tensorflow optimized version** that includes:
 
 - Class imbalance handler with dynamic weighting and Focal Loss support.
 - **TensorFlow Keras Functional API preprocessing**: The original implementation used NumPy for encoding preprocessing layers, while this version uses TensorFlow Keras 3 functional programming for end-to-end preprocessing pipelines.

@@ -116,4 +116,3 @@ class FillNA(tf.keras.layers.Layer):
         config = super(FillNA, self).get_config()
         config.update({"fill_values": self.fill_values})
         return config
-

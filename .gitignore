@@ -92,3 +92,9 @@ Desktop.ini
 data/**
 !data/**/
 
+# Explicitly keep specific model artifacts (keep examples)
+!data/artifacts/
+!data/artifacts/models/
+!data/artifacts/models/20251225/
+!data/artifacts/models/20251225/**
+

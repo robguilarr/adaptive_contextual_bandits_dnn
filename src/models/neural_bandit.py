@@ -26,35 +26,37 @@ class NeuralBanditModel(tf.keras.Model):
         # Determine input shape from preprocessing model output if available
         input_shape = None
         if hasattr(preprocessing_submodel, "output_shape"):
-             output_shapes = preprocessing_submodel.output_shape
-             if isinstance(output_shapes, list):
-                 # [ (None, 21), (None, 1) ]
-                 concat_shape = output_shapes[0]
-             else:
-                 concat_shape = output_shapes
-             
-             if concat_shape and len(concat_shape) > 1:
-                 input_shape = (concat_shape[1],)
+            output_shapes = preprocessing_submodel.output_shape
+            if isinstance(output_shapes, list):
+                # [ (None, 21), (None, 1) ]
+                concat_shape = output_shapes[0]
+            else:
+                concat_shape = output_shapes
+
+            if concat_shape and len(concat_shape) > 1:
+                input_shape = (concat_shape[1],)
 
         # Build Q-network
         layers = []
         if input_shape:
             layers.append(tf.keras.layers.InputLayer(input_shape=input_shape))
-            
-        layers.extend([
-            tf.keras.layers.Dense(256, activation="relu", name="hidden_dense_1"),
-            tf.keras.layers.Dense(512, activation="relu", name="hidden_dense_2"),
-            tf.keras.layers.Dense(512, activation="relu", name="hidden_dense_3"),
-            tf.keras.layers.Dense(256, activation="relu", name="hidden_dense_4"),
-            tf.keras.layers.Dropout(0.2, name="dropout_1"),
-            tf.keras.layers.Dense(128, activation="relu", name="hidden_dense_5"),
-            tf.keras.layers.Dense(64, activation="relu", name="hidden_dense_6"),
-            tf.keras.layers.Dropout(0.2, name="dropout_2"),
-            tf.keras.layers.Dense(32, activation="relu", name="hidden_dense_7"),
-            tf.keras.layers.Dense(
-                output_dim, activation=output_activation, name="output_dense"
-            ),
-        ])
+
+        layers.extend(
+            [
+                tf.keras.layers.Dense(256, activation="relu", name="hidden_dense_1"),
+                tf.keras.layers.Dense(512, activation="relu", name="hidden_dense_2"),
+                tf.keras.layers.Dense(512, activation="relu", name="hidden_dense_3"),
+                tf.keras.layers.Dense(256, activation="relu", name="hidden_dense_4"),
+                tf.keras.layers.Dropout(0.2, name="dropout_1"),
+                tf.keras.layers.Dense(128, activation="relu", name="hidden_dense_5"),
+                tf.keras.layers.Dense(64, activation="relu", name="hidden_dense_6"),
+                tf.keras.layers.Dropout(0.2, name="dropout_2"),
+                tf.keras.layers.Dense(32, activation="relu", name="hidden_dense_7"),
+                tf.keras.layers.Dense(
+                    output_dim, activation=output_activation, name="output_dense"
+                ),
+            ]
+        )
 
         self.qnet = tf.keras.Sequential(layers, name="neural_bandit_q_network")
 
@@ -105,7 +107,9 @@ class NeuralBanditModel(tf.keras.Model):
         def train_fn():
             with tf.GradientTape() as tape:
                 # Forward pass: get Q-values and integer action_id
-                q_values, action_id = self(features, training=True)  # True: training mode
+                q_values, action_id = self(
+                    features, training=True
+                )  # True: training mode
 
                 # Shape assertions
                 batch_size = tf.shape(q_values)[0]
@@ -144,7 +148,9 @@ class NeuralBanditModel(tf.keras.Model):
 
             grads = tape.gradient(loss, self.trainable_variables)
             self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
-            self.compute_metrics(features, label_reshaped, chosen_q, sample_weight=sample_weight)
+            self.compute_metrics(
+                features, label_reshaped, chosen_q, sample_weight=sample_weight
+            )
             return {m.name: m.result() for m in self.metrics}
 
         def skip_fn():
@@ -152,8 +158,10 @@ class NeuralBanditModel(tf.keras.Model):
             # This avoids "Metric not built" error on first batch if empty nd ensures we return the accumulated metric value otherwise
             label_reshaped = tf.reshape(label, [-1, 1])
             chosen_q = tf.zeros_like(label_reshaped)
-            
-            self.compute_metrics(features, label_reshaped, chosen_q, sample_weight=sample_weight)
+
+            self.compute_metrics(
+                features, label_reshaped, chosen_q, sample_weight=sample_weight
+            )
             return {m.name: m.result() for m in self.metrics}
 
         return tf.cond(tf.equal(batch_len, 0), skip_fn, train_fn)
@@ -187,7 +195,9 @@ class NeuralBanditModel(tf.keras.Model):
         action_mask = tf.one_hot(tf.cast(action_id, tf.int32), depth=self.output_dim)
 
         # Extract the predicted Q-value for the chosen action
-        chosen_q = tf.reduce_sum(q_values * action_mask, axis=1, keepdims=True) # (batch, 1)
+        chosen_q = tf.reduce_sum(
+            q_values * action_mask, axis=1, keepdims=True
+        )  # (batch, 1)
         label = tf.reshape(label, [-1, 1])
 
         loss = self.compute_loss(

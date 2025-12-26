@@ -10,7 +10,7 @@ name = "adaptive_contextual_bandits_dnn"
 requires-python = ">=3.10"
 readme = "README.md"
 version = "0.1.0"
-description = "A Python package for training neural bandits, evaluating their performance, and visualizing the results."
+description = "Deep neural networks to learn Q-values for contextual multi-armed bandit problems, with a focus on in-app purchase (IAP) optimization"
 authors = [
     {name = "Roberto Aguilar", email = "robert.aq@outlook.com"}
 ]

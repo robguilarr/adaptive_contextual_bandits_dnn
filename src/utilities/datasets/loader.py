@@ -62,15 +62,16 @@ def load_dataset(
     try:
         # Determine compression type based on file extension
         compression_type = data_config["compression_type"]
-        open_mode = 'rt'
+        open_mode = "rt"
         if file_pattern.endswith(".gz") or file_pattern.endswith(".gzip"):
             import gzip
+
             file_handle = gzip.open(file_pattern, open_mode)
             compression_type = "GZIP"
         else:
             file_handle = open(file_pattern, open_mode)
             compression_type = None
-        
+
         reader = csv.reader(file_handle, delimiter=data_config["field_delim"])
         csv_header = next(reader)
         file_handle.close()
@@ -86,12 +87,16 @@ def load_dataset(
             csv_columns_ordered.append(col)
             csv_defaults_ordered.append(columns_config[col]["default"])
         else:
-            logger.warning(f"Column '{col}' in CSV header not found in config, skipping")
+            logger.warning(
+                f"Column '{col}' in CSV header not found in config, skipping"
+            )
 
     # Add any config columns not in CSV header (with warnings)
     for col in columns_config.keys():
         if col not in csv_columns_ordered:
-            logger.warning(f"Column '{col}' in config not found in CSV header, adding at end")
+            logger.warning(
+                f"Column '{col}' in config not found in CSV header, adding at end"
+            )
             csv_columns_ordered.append(col)
             csv_defaults_ordered.append(columns_config[col]["default"])
 
@@ -228,7 +233,9 @@ def balance_eval_dataset(
         balanced_dataset = balanced_dataset.concatenate(ds)
 
     balanced_dataset = (
-        balanced_dataset.shuffle(buffer_size=data_config["balanced_shuffle_buffer_size"])
+        balanced_dataset.shuffle(
+            buffer_size=data_config["balanced_shuffle_buffer_size"]
+        )
         .batch(batch_size)
         .prefetch(tf.data.AUTOTUNE)
     )

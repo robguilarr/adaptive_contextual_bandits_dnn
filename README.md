@@ -22,7 +22,7 @@ This package implements a **Neural Contextual Bandit** model that learns to reco
 - **Preprocessing Submodel**: builds a functional preprocessing graph with conditional layer chaining based on data types, and includes persisted (**cached in-memory**) action mapping for action-to-integer encoding
 - **Flexible Preprocessing**: Automatic feature encoding with normalization for numerical features and one-hot encoding for categorical features
 - **ValidationCallback**: Evaluation callback that measures balanced accuracy by filtering and downsampling on positive rewards, comparing Q-values against predicted rewards during training
-- **Class Imbalance Handling**: Dynamic sample weighting to address imbalanced reward distributions
+- **Class Imbalance Reward-Handling**: Dynamic sample weighting to address imbalanced reward distributions
 - **Multiple Loss Functions**: Support for MSE and Binary Focall Loss cross-entropy for handling class imbalance
 - **TensorBoard Integration**: Comprehensive logging and visualization of training metrics
 - **Synthetic Data Generation**: Built-in data generator for creating training datasets with configurable exploration *Epsilon-Greedy* policies
@@ -30,14 +30,14 @@ This package implements a **Neural Contextual Bandit** model that learns to reco
 
 ## Acknowledgments
 
-This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et. al*) on Realtime on-device In-app-purchase optimization. This implementation is an **enhanced and higher-performance version** that includes:
+This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et al.*) on Realtime on-device In-app-purchase optimization. This implementation is an **enhanced and higher-performance version** that includes:
 
 - Class imbalance handler with dynamic weighting and Focal Loss support.
 - **TensorFlow Keras Functional API preprocessing**: The original implementation used NumPy for encoding preprocessing layers, while this version uses TensorFlow Keras 3 functional programming for end-to-end preprocessing pipelines.
 - Enhanced preprocessing pipeline with flexible feature encoding and automatic layer adaptation.
 - TensorBoard integration for training monitoring.
 - Synthetic data generation module for testing and development.
-- Multiple model export formats including TFLite with metadata (Not 100% ready on version 1.0.0.).
+- Multiple model export formats including TFLite with metadata (Not 100% ready on version 0.1.).
 
 **Original Inspiration:**
 
@@ -55,7 +55,7 @@ This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/robguilarr/adaptive_contextual_bandits_dnn.git
 cd adaptive_contextual_bandits_dnn
 
 # Create virtual environment and install dependencies
@@ -132,25 +132,13 @@ python src/train.py
 # Or use venv's python directly: venv/bin/python src/train.py
 ```
 
-Training will:
-- Load and preprocess the dataset
-- Create and adapt preprocessing layers
-- Train the neural bandit model
-- Save checkpoints and model artifacts
-- Generate model plots and summaries
-- Export models in specified formats
-
 ### 4. Monitor Training with TensorBoard
 
 ```bash
 tensorboard --logdir data/artifacts/models
 ```
 
-Open `http://localhost:6006` in your browser to view:
-- Training loss and metrics
-- Validation accuracy
-- Learning rate schedule
-- Model architecture graphs
+Open `http://localhost:6006` in your browser to view
 
 ### 5. Evaluate the Model
 
@@ -212,7 +200,7 @@ adaptive_contextual_bandits_dnn/
 │   ├── processed/                 # Processed data
 │   └── artifacts/                 # Model artifacts
 │       └── models/                # Saved models
-├── docs/                          # Documentation
+├── docs/                          # Documentation/Debuggin & Materials
 ├── tests/                         # Unit tests
 ├── notebooks/                     # Jupyter notebooks
 ├── pyproject.toml                 # Package configuration
@@ -308,16 +296,6 @@ The package supports exporting models in multiple formats:
 - **TensorFlow Lite** (`.tflite`): For mobile/edge deployment with metadata
 
 TFLite export includes preprocessing metadata (normalization stats, vocabulary, action mappings) in JSON format.
-
-## Development
-
-### Building Documentation
-
-```bash
-pip install -e ".[docs]"
-cd docs
-make html
-```
 
 ## Troubleshooting
 

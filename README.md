@@ -33,7 +33,7 @@ This package implements a **Neural Contextual Bandit** model that learns to reco
 This project is inspired by Google's Firebase team work (*E. Sun, I. Ulukaya, et al.*) on Realtime on-device In-app-purchase optimization. This implementation is an **Tensorflow optimized version** that includes:
 
 - Class imbalance handler with dynamic weighting and Focal Loss support.
-- **TensorFlow Keras Functional API preprocessing**: The original implementation used NumPy for encoding preprocessing layers, while this version uses TensorFlow Keras 3 functional programming for end-to-end preprocessing pipelines.
+- **TensorFlow Keras Functional API preprocessing**: The original implementation used NumPy for encoding preprocessing layers, while this version uses TensorFlow Keras 3 functional programming for end-to-end preprocessing pipelines, fully optimized to run on GPUs.
 - Enhanced preprocessing pipeline with flexible feature encoding and automatic layer adaptation.
 - TensorBoard integration for training monitoring.
 - Synthetic data generation module for testing and development.

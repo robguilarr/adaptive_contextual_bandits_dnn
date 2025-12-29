@@ -4,7 +4,7 @@ date: 2025-12-31
 image: ./meta.jpg
 seo:
   title: 'Neural Contextual Bandits with TensorFlow: A Deep Learning Approach to In-App Purchase Recommendations'
-  description: "A practical guide to learn how to build a Neural Contextual Bandit system using TensorFlow. Covering GPU preprocessing, Focal Loss, and handling reward-class imbalance for RecSys."
+  description: "A practical guide to build and train a Neural Contextual Bandit systems using TensorFlow. Covering GPU preprocessing, Focal Loss, and handling reward-class imbalance for RecSys."
   type: article
 ---
 
@@ -65,7 +65,7 @@ To address the limitations of traditional linear models and allow for scalable p
 
 **1.6.1 Theoretical Foundation**
 
-This approach derives its framework from the **"Part II - Neural Contextual Bandits"** lectures outlined by Ban, Qi, & He in their work on personalized recommendation ([Ban et al., 2023](https://arxiv.org/abs/2312.14037)). We operate under the hypothesis that deep neural networks can serve as effective function approximators for the policy $\pi^*$ in contextual bandit settings, capturing the non-linear dynamics that LinUCB misses.
+This approach derives its framework from the **"Part II - Neural Contextual Bandits"** lectures outlined by Ban, Qi, & He in their work on personalized recommendation ([Ban et al., 2023](https://arxiv.org/abs/2312.14037)). We will work under the hypothesis that deep neural networks can serve as effective function approximators for the policy $\pi^*$ in contextual bandit settings, capturing the non-linear dynamics that LinUCB misses.
 
 **1.6.2 Engineering Foundation**
 
